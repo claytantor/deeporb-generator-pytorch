@@ -1,0 +1,24 @@
+# python
+.DS_Store
+venv/
+venv/*
+.vscode/
+.vscode/*
+config.*
+._.DS_Store
+__pycache__/
+output/
+._*.*
+content/
+content/*
+.eric6project/
+*.e5p
+datasets/
+datasets/*
+sequences/
+sequences/*
+training/
+training/*
+basemidi/
+workspace/
+workspace/*
