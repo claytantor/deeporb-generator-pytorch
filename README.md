@@ -55,6 +55,8 @@ docker build -t pytorch-rnn-midi:latest .
 
 # running the scripts
 
+![pipeline](docs/img/DeepOrbPipeline2.svg)
+
 ## encode_midi_words.py - encoding midi to words
 The use of the encoder is intended to allow for the translation of midi events into words that the LSTM Network can learn from.
 
