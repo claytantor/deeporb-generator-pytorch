@@ -1,4 +1,4 @@
-# deeporb-generator-pytorch
+# SCRATCH NOTES for deeporb-generator-pytorch
 Deep Orb is a project about computers learning how to make music. The core approach to that is Recurrant neural network based learning models are used to teach powerful GPU based systems to compose, choose instuments, genres and ultimately produce complete musical works.
 
 # background
@@ -10,41 +10,8 @@ Deep Orb is a project about computers learning how to make music. The core appro
 * [TensorFlow Magenta](https://magenta.tensorflow.org/)
 
 # setting up your GPU and container 
-To use the [Nvidia Pytorch Docker Container](https://ngc.nvidia.com/catalog/containers/nvidia:pytorch) your host computer will need to have the correct drivers installed first. 
 
-## CUDA for pytorch
-This is the CUDA and driver version I use on Ubuntu 20.04 for this project. It is strogly reccomended that you go [directly to NVidia downloads](https://developer.nvidia.com/cuda-downloads) and make sure you have the correct driver fully installed to enable using the container
 
-when you are finsihed `nvidia-smi` should show you something like this:
-
-```bash
-$ nvidia-smi
-+-----------------------------------------------------------------------------+
-| NVIDIA-SMI 450.51.06    Driver Version: 450.51.06    CUDA Version: 11.0     |
-|-------------------------------+----------------------+----------------------+
-| GPU  Name        Persistence-M| Bus-Id        Disp.A | Volatile Uncorr. ECC |
-| Fan  Temp  Perf  Pwr:Usage/Cap|         Memory-Usage | GPU-Util  Compute M. |
-|                               |                      |               MIG M. |
-|===============================+======================+======================|
-|   0  GeForce RTX 208...  On   | 00000000:2D:00.0  On |                  N/A |
-|  0%   53C    P8    30W / 250W |    637MiB / 11016MiB |     16%      Default |
-|                               |                      |                  N/A |
-+-------------------------------+----------------------+----------------------+
-
-+-----------------------------------------------------------------------------+
-| Processes:                                                                  |
-|  GPU   GI   CI        PID   Type   Process name                  GPU Memory |
-|        ID   ID                                                   Usage      |
-|=============================================================================|
-|    0   N/A  N/A      1372      G   /usr/lib/xorg/Xorg                 53MiB |
-|    0   N/A  N/A      2220      G   /usr/lib/xorg/Xorg                214MiB |
-|    0   N/A  N/A      2421      G   /usr/bin/gnome-shell              134MiB |
-|    0   N/A  N/A      3005      G   ...AAAAAAAAA= --shared-files      208MiB |
-|    0   N/A  N/A      5617      G   gnome-control-center                6MiB |
-+-----------------------------------------------------------------------------+
-```
-
-[a script](./cuda_install.sh) is provided as an example and should work for Ubuntu 20.04 LTS
 
 # building the container
 This project exclusely uses docker containers that are provided with PyTorch and are Nvidia GPU and Driver enabled.
@@ -58,7 +25,7 @@ docker build -t pytorch-rnn-midi:latest .
 ## encode_midi_words.py - encoding midi to words
 The use of the encoder is intended to allow for the translation of midi events into words that the LSTM Network can learn from.
 
-```python
+```
     parser.add_argument("-m", "--midi", action="store", required=True, dest="midi_dir", help="midi directory to open")
 
     parser.add_argument("-o", "--out", action="store", required=True, dest="out", help="output dir to write to")
@@ -70,11 +37,11 @@ The three arguments are used to recursively scan through a directory for all mid
 
 This will allow a dirctory with a collection of songs in a specific folder to be the source of training by all the shared instruments.
 
-```bash
+```
 docker run --gpus all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 -it --rm -v $(pwd)/workspace:/workspace pytorch-rnn-midi:latest python encode_midi_words.py -m /workspace/midi/early_pieces_6 -o /workspace/txt -s early_b
 ```
 
-will generate JSON files that encode each track as a instrument in the tree hierchy under the session name:
+will generate JSON files that encode each track as a instrument in the tree hierck under the session name:
 
 ```bash
 early_b/
@@ -90,6 +57,10 @@ early_b/
 │   └── fx_4_(atmosphere)-a5942e.json
 ├── fx_atmosphere
 │   └── fx_atmosphere-7c194c.json
+├── gunshot
+│   ├── gunshot-13a6ce.json
+│   ├── gunshot-659daa.json
+│   └── gunshot-fd742c.json
 ├── lead_6_(voice)
 │   ├── lead_6_(voice)-153cd1.json
 │   └── lead_6_(voice)-8d1aec.json
@@ -112,23 +83,21 @@ early_b/
 
 ```
 
-eah file has a list of notes in common musical notation that will be turned into words for the LSTM to learn:
+and with notes in common musical notation:
 
 ```json
 {
-    "notes": [{
-        "nameWithOctave": "A3",
-        "fullName": "A in octave 3 Quarter Note",
-        "pitch": {
-            "name": "A",
-            "microtone": "(+0c)",
-            "octave": "3",
-            "step": "A"
-        },
-        "duration": {
-            "type": "quarter"
-        }
-    }]
+    "nameWithOctave": "A3",
+    "fullName": "A in octave 3 Quarter Note",
+    "pitch": {
+        "name": "A",
+        "microtone": "(+0c)",
+        "octave": "3",
+        "step": "A"
+    },
+    "duration": {
+        "type": "quarter"
+    }
 }
 ```
 
@@ -137,8 +106,32 @@ eah file has a list of notes in common musical notation that will be turned into
 ## train.py - use the instrument note files to train the model 
 
 
-```bash
+
+python train.py --mode train --file ./training/metal_song_titles/source/The-Collected-Works-of-HP-Lovecraft_djvu_poems_clean.txt --session metal03 --number 4000
+
+docker run --gpus all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 -it --rm -v $(pwd)/workspace:/workspace pytorch-rnn-midi:latest python train.py --mode train --file /workspace/training/ --session metal03 --number 4000
+
+
 docker run --gpus all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 -it --rm -v $(pwd)/workspace:/workspace pytorch-rnn-midi:latest python train.py --data_dir /workspace/txt/early_pieces_6_b --session musict1 --number 4000
-```
 
 
+wrote file: /workspace/txt/early_pieces_6_b/4_38_chords.txt
+wrote file: /workspace/txt/early_pieces_6_b/4_38_notes.txt
+wrote file: /workspace/txt/early_pieces_6_b/4_62_chords.txt
+wrote file: /workspace/txt/early_pieces_6_b/4_62_notes.txt
+wrote file: /workspace/txt/early_pieces_6_b/12_38_chords.txt
+wrote file: /workspace/txt/early_pieces_6_b/12_38_notes.txt
+wrote file: /workspace/txt/early_pieces_6_b/12_62_chords.txt
+wrote file: /workspace/txt/early_pieces_6_b/12_62_notes.txt
+
+
+docker run --gpus all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 -it --rm -v $(pwd)/workspace:/workspace pytorch-rnn-midi:latest python predict.py --data_dir /workspace/txt/early_pieces_6_b --session musict1
+
+
+docker run --gpus all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 -it --rm -v $(pwd)/workspace:/workspace pytorch-rnn-midi:latest python train.py --data_dir /workspace/txt/early_pieces_6_b/notes --session musict1_notes2 --number 4000
+
+docker run --gpus all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 -it --rm -v $(pwd)/workspace:/workspace pytorch-rnn-midi:latest python predict.py --data_dir /workspace/txt/early_pieces_6_b/notes --session musict1_notes2 --out_dir /workspace/out
+
+docker run --gpus all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 -it --rm -v $(pwd)/workspace:/workspace pytorch-rnn-midi:latest python train.py -d /workspace/words/dub1/acoustic_grand_piano -s dub1_gp -n 4000
+
+docker run --gpus all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 -it --rm -v $(pwd)/workspace:/workspace pytorch-rnn-midi:latest python predict.py -d /workspace/words/dub1/acoustic_bass -s dub1_acoustic_bass --initial  "b_1_quarter b_1_complex f#_2_quarter b_1_quarter b_1_complex f#_2_quarter b_1_quarter b_1_quarter b_1_quarter c#_2_eighth d_2_eighth e_2_eighth f#_2_quarter f#_2_quarter c#_2_eighth f#_2_eighth b_1_quarter b_1_complex f#_2_quarter b_1_quarter b_1_quarter b_1_quarter c#_2_eighth d_2_eighth e_2_eighth f#_2_quarter f#_2_quarter c#_2_eighth f#_2_eighth b_1_quarter b_1_quarter b_1_quarter c#_2_eighth d_2_eighth e_2_eighth f#_2_quarter f#_2_quarter c#_2_eighth f#_2_eighth" 

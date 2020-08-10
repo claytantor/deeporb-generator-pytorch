@@ -8,7 +8,9 @@ import music21
 import pretty_midi
 import random
 import uuid
+import re
 
+from typing import Optional, List, Tuple, Dict, Union, Any
 from collections import Counter
 from math import floor
 from pyknon.genmidi import Midi
@@ -45,6 +47,7 @@ def write_instrument_words(instument, words, base_dir):
     with open(file_name, 'w+') as f:
         f.write(words)
     f.close()
+    print("wrote", file_name)
 
 
 def get_data_from_files(train_directory, batch_size, seq_size):
@@ -81,6 +84,13 @@ def get_data_from_files(train_directory, batch_size, seq_size):
     out_text = np.reshape(out_text, (batch_size, -1))
     return int_to_vocab, vocab_to_int, n_vocab, in_text, out_text
 
+def write_notes_model_json(notes_model, file_name):
+    with open(file_name, 'w+') as f:
+        f.write(json.dumps(notes_model))
+    
+    f.close()
+    print("wrote", file_name)
+
 
 def write_notes_model(notes_model, midi_file):
     # new_stream = stream.Stream()
@@ -105,53 +115,39 @@ def write_notes_model(notes_model, midi_file):
     mf.write()
     mf.close()
     print('wrote file:', midi_file)
-    
-    
-def get_notes_model_from_stream(midi_stream):  
+  
+
+def get_notes_list_from_track(midi_track):
+
+    track_stream = music21.midi.translate.midiTrackToStream(midi_track)
+    track_notes = get_notes_list_from_stream(track_stream)
+
+    return track_notes
+
+
+def get_notes_list_from_stream(midi_stream):  
 
     noteFilter=music21.stream.filters.ClassFilter('Note')
     # chordFilter=music21.stream.filters.ClassFilter('Chord')
-    note_model = {}
-    channel_no = 1
-
+    stream_notes = []
 
     for note in midi_stream.recurse().addFilter(noteFilter):
-        # print(".", end = '')
-        # midiEvents = music21.midi.translate.noteToMidiEvents(note)
-        # print(midiEvents[0].channel)
         note_dict = {
             'nameWithOctave': note.nameWithOctave,
             'fullName': note.fullName,
             'pitch': {
                 'name': note.pitch.name,
-                'microtone': note.pitch.microtone,
-                'octave': note.pitch.octave,
-                'step': note.pitch.step
+                'microtone': str(note.pitch.microtone),
+                'octave': str(note.pitch.octave),
+                'step': str(note.pitch.step)
             },
             'duration':{
-                'type': note.duration.type
-            },
-            'beat': note.beat
+                'type': str(note.duration.type)
+            }
         }
-
-
-        if note.activeSite.getInstrument().instrumentName in note_model and best_instrument != None:
-            note_model[best_instrument['name']]['notes'].append(note_dict)         
-        else:            
-            if note.activeSite.getInstrument().instrumentName != None:
-                best_instrument = get_best_instrument_fast(note.activeSite.getInstrument().instrumentName, INSTRUMENT_MAP)
-            else:
-                best_instrument = get_best_instrument_fast("Grand Piano", INSTRUMENT_MAP)
-
-            note_model[best_instrument['name']] = {}
-            # note_model[best_instrument['name']]['channel'] = midiEvents[0].channel 
-            note_model[best_instrument['name']]['channel'] = channel_no 
-            note_model[best_instrument['name']]['program'] = best_instrument['program_id']           
-            note_model[best_instrument['name']]['notes'] = [note_dict]
-            channel_no += 1
+        stream_notes.append(note_dict)
     
-    print(note_model)
-    return note_model
+    return stream_notes
 
 def parse_midi_notes(midi_fname):  
 
@@ -163,16 +159,25 @@ def parse_midi_notes(midi_fname):
     except:
         print("Skipping file: Midi file has bad formatting")
         return
+    
+    tracks_all = []
+    for track in mf.tracks:
+        if(track.hasNotes()):
 
-    try:
-        midi_stream=music21.midi.translate.midiFileToStream(mf)
-    except:
-        print("Skipping file: music21.midi.translate failed")
-        return
-
-    notes_model = get_notes_model_from_stream(midi_stream)
-    return notes_model
-
+            # print(track.getProgramChanges())
+            if(len(track.getProgramChanges())>0):
+                track_model = {}
+                i_name = pretty_midi.program_to_instrument_name(track.getProgramChanges()[0])
+                track_model['notes'] = get_notes_list_from_track(track)
+                track_model['name'] = i_name
+                i_key = re.sub(r'[^A-Za-z ]', '', i_name)
+                i_key = " ".join(i_key.split())
+                track_model['key'] = i_key.replace(' ','_').lower()              
+                track_model['program'] = track.getProgramChanges()[0]
+                tracks_all.append(track_model)
+    
+    return tracks_all
+                
 
 def levenshtein_ratio_and_distance(s, t, ratio_calc = False):
     """ levenshtein_ratio_and_distance:

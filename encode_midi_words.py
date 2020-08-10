@@ -3,8 +3,9 @@ import argparse
 import string
 import json
 import music21 
+import uuid
 
-from utils import parse_midi_notes, write_notes_model, make_dir, write_instrument_words, find_files
+from utils import parse_midi_notes, write_notes_model, make_dir, write_instrument_words, find_files, write_notes_model_json
 
 def char_range(c1, c2):
     """Generates the characters from `c1` to `c2`, inclusive."""
@@ -36,21 +37,20 @@ def main(argv):
     make_dir(session_dir)
  
     all_midi = find_files(args.midi_dir, pattern="*.mid", recursive=True)
+    if(len(all_midi)==0):
+        print("no midi files found")
+
     for midi_file in all_midi:
         print('reading file:', midi_file)
+        notes_model_alltracks = parse_midi_notes(midi_file)
+        for track_notes in notes_model_alltracks:
+            if(len(track_notes['notes'])>0):
+                track_dir = '{}/{}'.format(session_dir, track_notes['key'])
+                make_dir(track_dir)
+                track_file_name = "{}/{}-{}.json".format(track_dir, track_notes['key'], str(uuid.uuid4()).replace('-','')[2:8])
+                write_notes_model_json(track_notes, track_file_name)
 
-        notes_model = parse_midi_notes(midi_file)
 
-        for key in notes_model.keys():
-            # print(key)
-            words = []
-            for note_item in notes_model[key]['notes']:
-                words.append(make_word(note_item['pitch']['name'],
-                    note_item['pitch']['octave'],
-                    note_item['duration']['type']))
-
-            # print('writing words', ' '.join(words))
-            write_instrument_words(key, ' '.join(words), session_dir)
 
 if __name__ == "__main__":
     main(sys.argv[1:])
