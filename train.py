@@ -132,15 +132,15 @@ def main(argv):
         required=False,  dest="number", help="the number of iterations")                                        
         
     parser.add_argument("-d", "--data_dir", action="store",
-        required=False, dest="data_dir", help="Source training text directory") 
+        required=False, dest="data_dir", help="Source text directory") 
+
+    parser.add_argument("-t", "--training_dir", action="store",
+        required=False, dest="training_dir", help="Training directory") 
       
     args = parser.parse_args()
         
-    session_dir = os.path.join(os.getcwd(), "/workspace/training/{}".format(args.session))
+    session_dir = os.path.join(os.getcwd(), "{}/{}".format(args.training_dir, args.session))
     make_dir(session_dir)
-
-    checkpoint_path = "{}/checkpoint_pt".format(session_dir)
-    make_dir(checkpoint_path)
 
 
     if not path.exists(args.data_dir):
@@ -148,33 +148,38 @@ def main(argv):
 
     flags = Namespace(  
             train_dir=args.data_dir,
+            session_name=args.session,
             seq_size=32,
             batch_size=16,
             embedding_size=64,
             lstm_size=64,
             gradients_norm=5,
             initial_words=['I', 'am'],
-            predict_top_k=5,
-            checkpoint_path=checkpoint_path,
+            predict_top_k=5
         )
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     print_info(device)
+
+    all_tracks = get_data_from_files(
+         flags.train_dir, flags.session_name, flags.batch_size, flags.seq_size)
     
-    int_to_vocab, vocab_to_int, n_vocab, in_text, out_text = get_data_from_files(
-        flags.train_dir, flags.batch_size, flags.seq_size)
+    for instrument_key in all_tracks.keys():
+        print("\n ===training model for instrument: {}".format(instrument_key))
+        instrument_track = all_tracks[instrument_key]
 
-    net = RNNModule(n_vocab, flags.seq_size,
-                    flags.embedding_size, flags.lstm_size)
 
+        checkpoint_path = "{}/{}/checkpoint_pt".format(session_dir, instrument_key)
+        make_dir(checkpoint_path)
+
+        net = RNNModule(instrument_track['n_vocab'], flags.seq_size,
+                        flags.embedding_size, flags.lstm_size)
                     
-    net = net.to(device)
+        net = net.to(device)
+        criterion, optimizer = get_loss_and_train_op(net, 0.01)
 
-    criterion, optimizer = get_loss_and_train_op(net, 0.01)
-
-
-    train(device, net, criterion, optimizer,  in_text, out_text, n_vocab, vocab_to_int, int_to_vocab, flags, checkpoint_path, iteration_count=int(args.number))
+        train(device, net, criterion, optimizer,  instrument_track['in_text'], instrument_track['out_text'], instrument_track['n_vocab'], instrument_track['vocab_to_int'], instrument_track['int_to_vocab'], flags, checkpoint_path, iteration_count=int(args.number))
 
 
 if __name__ == "__main__":

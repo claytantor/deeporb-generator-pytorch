@@ -50,39 +50,88 @@ def write_instrument_words(instument, words, base_dir):
     print("wrote", file_name)
 
 
-def get_data_from_files(train_directory, batch_size, seq_size):
+def make_vocabulary_for_instrument(insrument_model, batch_size, seq_size):
 
-    all_files = find_files(train_directory, pattern="*.txt", recursive=True)
-    text_list = []
-    for train_file in all_files:
-        print('reading file: {}'.format(train_file))
-        with open(train_file, 'r') as f:
-            t_f = f.read()
-            # print(t_f)
-        text_list.append(t_f)
-
-    text_all = ' '.join(text_list)
-    text = text_all.split()
+    text = insrument_model['words']
 
     word_counts = Counter(text)
     sorted_vocab = sorted(word_counts, key=word_counts.get, reverse=True)
-    # print("vocabulary", sorted_vocab)
     int_to_vocab = {k: w for k, w in enumerate(sorted_vocab)}
     vocab_to_int = {w: k for k, w in int_to_vocab.items()}
     n_vocab = len(int_to_vocab)
 
-    print('Vocabulary size', n_vocab)
+    # print('Vocabulary size', n_vocab)
 
     int_text = [vocab_to_int[w] for w in text]
     num_batches = int(len(int_text) / (seq_size * batch_size))
     in_text = int_text[:num_batches * batch_size * seq_size]
     out_text = np.zeros_like(in_text)
+    
+    if(len(in_text)>0 and len(out_text)>0):
+        # print(in_text, out_text)
 
-    out_text[:-1] = in_text[1:]
-    out_text[-1] = in_text[0]
-    in_text = np.reshape(in_text, (batch_size, -1))
-    out_text = np.reshape(out_text, (batch_size, -1))
-    return int_to_vocab, vocab_to_int, n_vocab, in_text, out_text
+        out_text[:-1] = in_text[1:]
+        out_text[-1] = in_text[0]
+        in_text = np.reshape(in_text, (batch_size, -1))
+        out_text = np.reshape(out_text, (batch_size, -1))
+        return int_to_vocab, vocab_to_int, n_vocab, in_text, out_text
+    else:
+        return int_to_vocab, vocab_to_int, n_vocab, [], []
+
+
+def get_data_from_files(train_directory, session, batch_size, seq_size):
+
+    #make the session dir under
+    session_dir = '{}/{}'.format(train_directory,session)
+    make_dir(session_dir)
+
+    all_tracks = {}
+
+    all_files = find_files(train_directory, pattern="*.json", recursive=True)
+
+
+    # read all files to memory
+    for train_file in all_files:
+        ## assume the file is in an instrument dir
+        instrument_key = train_file.split('/')[-2:-1][0]
+        # print(instrument_key)
+        # print(instrument_key, all_tracks)
+        if(instrument_key not in all_tracks):
+            # print("adding instrument")
+            all_tracks[instrument_key] = {}
+            all_tracks[instrument_key]['words'] = []
+
+        print('reading file: {}'.format(train_file))
+        with open(train_file, 'r') as f:
+            t_f = f.read()
+
+            ## this is a json file so make it a dictionary
+            track_notes = json.loads(t_f)
+            for note in track_notes['notes']:
+                # print(note)
+                all_tracks[instrument_key]['words'].append(note['word'])
+
+    # print(all_tracks)
+
+    delete_keys = []
+    for instrument_key in all_tracks.keys():
+        instrument_model = all_tracks[instrument_key]
+        # print(instrument_key, instrument_model)
+        int_to_vocab, vocab_to_int, n_vocab, in_text, out_text = make_vocabulary_for_instrument(instrument_model, batch_size, seq_size)
+        instrument_model['int_to_vocab'] = int_to_vocab
+        instrument_model['vocab_to_int'] = vocab_to_int
+        instrument_model['n_vocab'] = n_vocab
+
+        if(len(in_text)== 0 or len(out_text) == 0):
+            delete_keys.append(instrument_key)
+        else:
+            instrument_model['in_text'] = in_text
+            instrument_model['out_text'] = out_text
+    
+    for d in delete_keys:
+        all_tracks.pop(d, None)
+    
+    return all_tracks
 
 def write_notes_model_json(notes_model, file_name):
     with open(file_name, 'w+') as f:
@@ -135,6 +184,7 @@ def get_notes_list_from_stream(midi_stream):
         note_dict = {
             'nameWithOctave': note.nameWithOctave,
             'fullName': note.fullName,
+            'word': '{}_{}_{}'.format(note.pitch.name, str(note.pitch.octave), str(note.duration.type)).lower(),
             'pitch': {
                 'name': note.pitch.name,
                 'microtone': str(note.pitch.microtone),

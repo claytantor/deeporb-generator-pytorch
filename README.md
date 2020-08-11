@@ -57,15 +57,48 @@ docker build -t pytorch-rnn-midi:latest .
 
 ![pipeline](docs/img/DeepOrbPipeline2.svg)
 
+## torchutils.py - test your CUDA installation
+Before you run the scripts you should test that the CUDA drivers and Pytorch are working 
+together. 
+
+```bash
+docker run --gpus all --shm-size=1g --ulimit \
+  memlock=-1 --ulimit stack=67108864 -it \
+  --rm -v $(pwd)/workspace:/workspace \
+  pytorch-rnn-midi:latest python torchutils.py
+```
+
+and the application should give you device details:
+
+```
+__Python VERSION: 3.6.10 |Anaconda, Inc.| (default, Mar 23 2020, 23:13:11)
+[GCC 7.3.0]
+__pyTorch VERSION: 1.6.0a0+9907a3e
+__CUDA AVILABLE: True
+__CUDNN VERSION: 8001
+__Number CUDA Devices: 1
+__Device: cuda GeForce RTX 2080 Ti
+Active CUDA Device: GPU 0
+Available devices  1
+Current cuda device  0
+```
+
+## downloading test data
+
+We have created a package of public domain Beethoven files to use for running the scrip base, for these example you should put them under the `/workspace/midi/beethoven` directory.
+
+[Beethoven Midi Files](https://deeporb-vanguard-dev.s3.amazonaws.com/mid/deeporb_beethoven_collection.tar.gz)
+
 ## encode_midi_words.py - encoding midi to words
 The use of the encoder is intended to allow for the translation of midi events into words that the LSTM Network can learn from.
 
+
 ```python
-    parser.add_argument("-m", "--midi", action="store", required=True, dest="midi_dir", help="midi directory to open")
+parser.add_argument("-m", "--midi", action="store", required=True, dest="midi_dir", help="midi directory to open")
 
-    parser.add_argument("-o", "--out", action="store", required=True, dest="out", help="output dir to write to")
+parser.add_argument("-o", "--out", action="store", required=True, dest="out", help="output dir to write to")
 
-    parser.add_argument("-s", "--session", action="store", required=True, dest="session", help="session name")
+parser.add_argument("-s", "--session", action="store", required=True, dest="session", help="session name")
 ```
 
 The three arguments are used to recursively scan through a directory for all miding files and segement them by midi instrument and then place note files in the heirchy by insrument under the session directory.
@@ -73,45 +106,61 @@ The three arguments are used to recursively scan through a directory for all mid
 This will allow a dirctory with a collection of songs in a specific folder to be the source of training by all the shared instruments.
 
 ```bash
-docker run --gpus all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 -it --rm -v $(pwd)/workspace:/workspace pytorch-rnn-midi:latest python encode_midi_words.py -m /workspace/midi/early_pieces_6 -o /workspace/txt -s early_b
+docker run --gpus all --shm-size=1g --ulimit \
+  memlock=-1 --ulimit stack=67108864 -it \
+  --rm -v $(pwd)/workspace:/workspace \
+  pytorch-rnn-midi:latest python encode_midi_words.py \
+  -m /workspace/midi/beethoven \
+  -o /workspace/txt -s beethoven_words
 ```
 
 will generate JSON files that encode each track as a instrument in the tree hierchy under the session name:
 
 ```bash
-early_b/
+beethoven_words/
 ├── acoustic_grand_piano
-│   ├── 96fa7371-cba0-4d61-8e64-884df4af5f93.txt
-│   └── b01ba9e2-054c-4c3d-bfb1-4e16f19010f4.txt
-├── brass_section
-│   ├── brass_section-1aecb2.json
-│   ├── brass_section-51cac2.json
-│   └── brass_section-888501.json
-├── fx_4_(atmosphere)
-│   ├── fx_4_(atmosphere)-119656.json
-│   └── fx_4_(atmosphere)-a5942e.json
-├── fx_atmosphere
-│   └── fx_atmosphere-7c194c.json
-├── lead_6_(voice)
-│   ├── lead_6_(voice)-153cd1.json
-│   └── lead_6_(voice)-8d1aec.json
-├── lead_8_(bass_+_lead)
-│   ├── lead_8_(bass_+_lead)-1a3531.json
-│   ├── lead_8_(bass_+_lead)-1e8e90.json
-│   ├── lead_8_(bass_+_lead)-23c040.json
-│   ├── lead_8_(bass_+_lead)-a2cb85.json
-│   ├── lead_8_(bass_+_lead)-a7352d.json
-│   └── lead_8_(bass_+_lead)-ab5ece.json
-├── lead_bass_lead
-│   ├── lead_bass_lead-65e195.json
-│   ├── lead_bass_lead-dee892.json
-│   └── lead_bass_lead-ed5419.json
-├── lead_voice
-│   └── lead_voice-3f3394.json
-└── pad_2_(warm)
-    ├── pad_2_(warm)-02008e.json
-    └── pad_2_(warm)-05fbf5.json
-
+│   ├── acoustic_grand_piano-5327f0.json
+│   ├── acoustic_grand_piano-5fd3f0.json
+│   ├── acoustic_grand_piano-70634a.json
+│   └── acoustic_grand_piano-fa6ca5.json
+├── bassoon
+│   ├── bassoon-066fb7.json
+│   ├── bassoon-0914ff.json
+│   ├── bassoon-1143d4.json
+│   ├── bassoon-3f1fc7.json
+│   ├── bassoon-cfeab3.json
+│   └── bassoon-ee5f0c.json
+├── flute
+│   ├── flute-3de53d.json
+│   ├── flute-a36411.json
+│   ├── flute-ad9538.json
+│   ├── flute-b70b0c.json
+│   └── flute-ca6929.json
+├── oboe
+│   ├── oboe-2d1557.json
+│   ├── oboe-8bab24.json
+│   ├── oboe-966e2d.json
+│   └── oboe-9867cd.json
+├── pizzicato_strings
+│   ├── pizzicato_strings-0a0100.json
+│   ├── pizzicato_strings-42ceac.json
+│   ├── pizzicato_strings-f25a22.json
+│   └── pizzicato_strings-f7d916.json
+├── timpani
+│   ├── timpani-02b4e1.json
+│   ├── timpani-23a309.json
+│   ├── timpani-56550f.json
+│   ├── timpani-b7fba5.json
+│   └── timpani-d10ac1.json
+├── trombone
+│   └── trombone-4de151.json
+├── trumpet
+│   ├── trumpet-02bc5c.json
+│   ├── trumpet-4e0d01.json
+│   ├── trumpet-7da75f.json
+│   └── trumpet-e4ac18.json
+└── violin
+    └── violin-08d157.json
 ```
 
 eah file has a list of notes in common musical notation that will be turned into words for the LSTM to learn:
@@ -140,7 +189,14 @@ eah file has a list of notes in common musical notation that will be turned into
 
 
 ```bash
-docker run --gpus all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 -it --rm -v $(pwd)/workspace:/workspace pytorch-rnn-midi:latest python train.py --data_dir /workspace/txt/early_pieces_6_b --session musict1 --number 4000
+docker run --gpus all --shm-size=1g --ulimit \
+   memlock=-1 --ulimit stack=67108864 -it --rm \
+   -v $(pwd)/workspace:/workspace \
+   pytorch-rnn-midi:latest python train.py \
+   --data_dir /workspace/txt/beethoven_words \
+   --session beethoven_words \
+   --training_dir /workspace/training \
+   --number 4000
 ```
 
 
