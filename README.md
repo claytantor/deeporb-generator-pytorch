@@ -164,7 +164,7 @@ beethoven_words/
     └── violin-08d157.json
 ```
 
-eah file has a list of notes in common musical notation that will be turned into words for the LSTM to learn:
+The file has a list of notes in common musical notation that will be turned into words for the LSTM to learn:
 
 ```json
 {
