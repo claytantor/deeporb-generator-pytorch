@@ -101,6 +101,7 @@ parser.add_argument("-o", "--out", action="store", required=True, dest="out", he
 parser.add_argument("-s", "--session", action="store", required=True, dest="session", help="session name")
 ```
 
+
 The three arguments are used to recursively scan through a directory for all miding files and segement them by midi instrument and then place note files in the heirchy by insrument under the session directory.
 
 This will allow a dirctory with a collection of songs in a specific folder to be the source of training by all the shared instruments.
