@@ -31,27 +31,25 @@ $ nvidia-smi
 |                               |                      |                  N/A |
 +-------------------------------+----------------------+----------------------+
 
-+-----------------------------------------------------------------------------+
-| Processes:                                                                  |
-|  GPU   GI   CI        PID   Type   Process name                  GPU Memory |
-|        ID   ID                                                   Usage      |
-|=============================================================================|
-|    0   N/A  N/A      1372      G   /usr/lib/xorg/Xorg                 53MiB |
-|    0   N/A  N/A      2220      G   /usr/lib/xorg/Xorg                214MiB |
-|    0   N/A  N/A      2421      G   /usr/bin/gnome-shell              134MiB |
-|    0   N/A  N/A      3005      G   ...AAAAAAAAA= --shared-files      208MiB |
-|    0   N/A  N/A      5617      G   gnome-control-center                6MiB |
-+-----------------------------------------------------------------------------+
 ```
 
 [a script](./cuda_install.sh) is provided as an example and should work for Ubuntu 20.04 LTS
 
-# building the container
+
+# the docker container
 This project exclusely uses docker containers that are provided with PyTorch and are Nvidia GPU and Driver enabled.
 
+## building the container
 ```
-docker build -t pytorch-rnn-midi:latest .
+docker build -t claytantor/deeporb-generator-pytorch:latest .
 ```
+
+## pulling from docker hub
+
+```
+docker pull claytantor/deeporb-generator-pytorch:latest
+```
+
 
 # running the scripts
 
@@ -65,7 +63,7 @@ together.
 docker run --gpus all --shm-size=1g --ulimit \
   memlock=-1 --ulimit stack=67108864 -it \
   --rm -v $(pwd)/workspace:/workspace \
-  pytorch-rnn-midi:latest python torchutils.py
+  claytantor/deeporb-generator-pytorch:latest python torchutils.py
 ```
 
 and the application should give you device details:
@@ -110,7 +108,7 @@ This will allow a dirctory with a collection of songs in a specific folder to be
 docker run --gpus all --shm-size=1g --ulimit \
   memlock=-1 --ulimit stack=67108864 -it \
   --rm -v $(pwd)/workspace:/workspace \
-  pytorch-rnn-midi:latest python encode_midi_words.py \
+  claytantor/deeporb-generator-pytorch:latest python encode_midi_words.py \
   -m /workspace/midi/beethoven \
   -o /workspace/txt -s beethoven_words
 ```
@@ -188,12 +186,11 @@ The file has a list of notes in common musical notation that will be turned into
 
 ## train.py - use the instrument note files to train the model 
 
-
 ```bash
 docker run --gpus all --shm-size=1g --ulimit \
    memlock=-1 --ulimit stack=67108864 -it --rm \
    -v $(pwd)/workspace:/workspace \
-   pytorch-rnn-midi:latest python train.py \
+   claytantor/deeporb-generator-pytorch:latest python train.py \
    --data_dir /workspace/txt/beethoven_words \
    --session beethoven_words \
    --training_dir /workspace/training \
@@ -201,3 +198,8 @@ docker run --gpus all --shm-size=1g --ulimit \
 ```
 
 
+## predict.py - use your training models to generate midi
+
+```bash
+docker run --gpus all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 -it --rm -v $(pwd)/workspace:/workspace claytantor/deeporb-generator-pytorch:latest python predict.py --data_dir /workspace/txt -s beethoven_words -t /workspace/training --midi_file /workspace/midi/beethoven/rondo.mid -o /workspace/midi
+```

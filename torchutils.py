@@ -13,5 +13,6 @@ def print_info(device):
     print ('Current cuda device ', torch.cuda.current_device())
 
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-print_info(device)
+if __name__ == "__main__":
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print_info(device)

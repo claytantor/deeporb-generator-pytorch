@@ -160,10 +160,11 @@ def main(argv):
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    print_info(device)
+    # print_info(device)
 
+    data_dir = '{}/{}'.format(flags.train_dir, flags.session_name)
     all_tracks = get_data_from_files(
-         flags.train_dir, flags.session_name, flags.batch_size, flags.seq_size)
+         data_dir, flags.batch_size, flags.seq_size)
     
     for instrument_key in all_tracks.keys():
         print("\n ===training model for instrument: {}".format(instrument_key))

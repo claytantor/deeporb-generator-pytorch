@@ -39,16 +39,14 @@ def find_files(dir_name, pattern="*.txt", recursive=True):
         all_files.append(name)
     return all_files
 
-
 def write_instrument_words(instument, words, base_dir):
     instrument_dir = '{}/{}'.format(base_dir,instument.replace(' ','_')).lower()
     make_dir(instrument_dir)
-    file_name = '{}/{}.txt'.format(instrument_dir,str(uuid.uuid4()))
+    file_name = '{}/{}.txt'.format(instrument_dir,get_hash())
     with open(file_name, 'w+') as f:
         f.write(words)
     f.close()
     print("wrote", file_name)
-
 
 def make_vocabulary_for_instrument(insrument_model, batch_size, seq_size):
 
@@ -79,16 +77,16 @@ def make_vocabulary_for_instrument(insrument_model, batch_size, seq_size):
         return int_to_vocab, vocab_to_int, n_vocab, [], []
 
 
-def get_data_from_files(train_directory, session, batch_size, seq_size):
+def get_data_from_files(data_dir, batch_size, seq_size):
 
-    #make the session dir under
-    session_dir = '{}/{}'.format(train_directory,session)
-    make_dir(session_dir)
+    # #make the session dir under
+    # session_dir = '{}/{}'.format(train_directory,session)
+    # make_dir(session_dir)
 
     all_tracks = {}
 
-    all_files = find_files(train_directory, pattern="*.json", recursive=True)
-
+    all_files = find_files(data_dir, pattern="*.json", recursive=True)
+    print(all_files)
 
     # read all files to memory
     for train_file in all_files:
@@ -111,8 +109,6 @@ def get_data_from_files(train_directory, session, batch_size, seq_size):
                 # print(note)
                 all_tracks[instrument_key]['words'].append(note['word'])
 
-    # print(all_tracks)
-
     delete_keys = []
     for instrument_key in all_tracks.keys():
         instrument_model = all_tracks[instrument_key]
@@ -127,6 +123,8 @@ def get_data_from_files(train_directory, session, batch_size, seq_size):
         else:
             instrument_model['in_text'] = in_text
             instrument_model['out_text'] = out_text
+        
+        all_tracks[instrument_key] = instrument_model
     
     for d in delete_keys:
         all_tracks.pop(d, None)
@@ -173,11 +171,31 @@ def get_notes_list_from_track(midi_track):
 
     return track_notes
 
+def decode_words_to_notes(words_list, name, words_channel=1):
+    # words_all = words.split()
+    notes_model = {}
+    notes_model[name] = {}
+    notes_model[name]['notes'] = []
+    notes_model[name]['channel'] = words_channel
+    for note_word in words_list:
+        note_word_parts = note_word.split('_')
+        # print(note_word_parts)
+        note = {      
+            'nameWithOctave': '{}{}'.format(note_word_parts[0], note_word_parts[1]),
+            'duration':{
+                'type': note_word_parts[2] if note_word_parts[2] != 'complex' else 'eighth' 
+            }
+        }
+        notes_model[name]['notes'].append(note)
+
+    return notes_model
+
+def get_hash(width=32):
+    return str(uuid.uuid4()).replace("-","")[:width]
 
 def get_notes_list_from_stream(midi_stream):  
 
     noteFilter=music21.stream.filters.ClassFilter('Note')
-    # chordFilter=music21.stream.filters.ClassFilter('Chord')
     stream_notes = []
 
     for note in midi_stream.recurse().addFilter(noteFilter):
@@ -199,7 +217,10 @@ def get_notes_list_from_stream(midi_stream):
     
     return stream_notes
 
+
 def parse_midi_notes(midi_fname):  
+
+    p_midi = pretty_midi.PrettyMIDI(midi_fname)
 
     mf=music21.midi.MidiFile()
     try:
@@ -211,10 +232,9 @@ def parse_midi_notes(midi_fname):
         return
     
     tracks_all = []
+
     for track in mf.tracks:
         if(track.hasNotes()):
-
-            # print(track.getProgramChanges())
             if(len(track.getProgramChanges())>0):
                 track_model = {}
                 i_name = pretty_midi.program_to_instrument_name(track.getProgramChanges()[0])

@@ -8,13 +8,12 @@ import argparse
 import glob
 import random
 import shutil
-import uuid
 
 import numpy as np
 from collections import Counter
 import os
 from argparse import Namespace
-from utils import get_data_from_files, make_dir
+from utils import get_data_from_files, make_dir, parse_midi_notes, decode_words_to_notes, get_hash, write_notes_model
 from torchutils import print_info
 
 class RNNModule(nn.Module):
@@ -86,68 +85,84 @@ def main(argv):
     parser.add_argument("-d", "--data_dir", action="store",
         required=False, dest="data_dir", help="Source training text directory") 
 
-    parser.add_argument("-i", "--initial", action="store", default="endp31 wait9 p16 p31 wait1 endp31 wait1",
-        required=False, dest="initial", help="Initial words to seed") 
-
     parser.add_argument("-s", "--session", action="store",
         required=True,  dest="session", help="the sessionid for the training")    
-
-    # parser.add_argument("-n", "--number", action="store", default=200,
-    #     required=False,  dest="number", help="the number of iterations")                                        
-        
-    parser.add_argument("-f", "--file", action="store",
-        required=False, dest="file", help="Source file") 
+                                           
+    parser.add_argument("-f", "--midi_file", action="store",
+        required=False, dest="midi_file", help="Source midi file used for multi instument influence") 
 
     parser.add_argument("-w", "--words", action="store", default="5",
         required=False, dest="words", help="Number of words")   
     
     parser.add_argument("-o", "--out_dir", action="store",
         required=False, dest="out_dir", help="save predictions to directory")   
+
+    parser.add_argument("-t", "--training_dir", action="store",
+        required=True, dest="training_dir", help="Training directory") 
       
     args = parser.parse_args()
    
-    session_dir = "/workspace/training/{}".format(args.session)
-    checkpoint_path = "{}/checkpoint_pt".format(session_dir)
-    source_dir = "{}/source".format(session_dir)
-    
-    flags = Namespace(  
-            train_dir=args.data_dir,
-            seq_size=32,
-            batch_size=16,
-            embedding_size=64,
-            lstm_size=64,
-            gradients_norm=5,
-            initial_words=args.initial.split(' '),
-            predict_top_k=int(args.words),
-            checkpoint_path=checkpoint_path,
-        )
+    training_dir = "{}/{}".format(args.training_dir, args.session)
+    data_dir = "{}/{}".format(args.data_dir, args.session)
+
+    # get all the instruments under
+    list_training_subfolders_with_paths = [f.path for f in os.scandir(training_dir) if f.is_dir()]
+    list_data_subfolders_with_paths = [f.path for f in os.scandir(data_dir) if f.is_dir()]
+
+    notes_model_alltracks = parse_midi_notes(args.midi_file)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print_info(device)
     
-    int_to_vocab, vocab_to_int, n_vocab, in_text, out_text = get_data_from_files(
-        flags.train_dir, flags.batch_size, flags.seq_size)
+    notes_model = {}
+    # predict for each track based on the sample
+    for track_n in notes_model_alltracks:
+        fitered_data_path = list(filter(lambda x: track_n['key'] in x, list_data_subfolders_with_paths))
+        fitered_training_path = list(filter(lambda x: track_n['key'] in x, list_training_subfolders_with_paths))
 
-    net = RNNModule(n_vocab, flags.seq_size,
+        if(len(fitered_data_path)>0 and len(fitered_training_path)>0):
+            track_words = list(map(lambda x : x['word'], track_n['notes']))
+
+            checkpoint_path = "{}/checkpoint_pt".format(fitered_training_path[0])
+            source_dir = "{}/source".format(fitered_training_path[0])
+            
+            flags = Namespace(  
+                    train_dir=args.data_dir,
+                    seq_size=32,
+                    batch_size=16,
+                    embedding_size=64,
+                    lstm_size=64,
+                    gradients_norm=5,
+                    initial_words=track_words[16:32],
+                    predict_top_k=int(args.words), 
+                    checkpoint_path=checkpoint_path,
+                )
+
+            track_data = get_data_from_files(fitered_data_path[0], flags.batch_size, flags.seq_size)[track_n['key']]
+
+            net = RNNModule(track_data['n_vocab'], flags.seq_size,
                         flags.embedding_size, flags.lstm_size)
 
+            list_of_files = glob.glob('{}/*'.format(checkpoint_path)) 
+            latest_file = max(list_of_files, key=os.path.getctime)
 
-    list_of_files = glob.glob('{}/*'.format(checkpoint_path)) # * means all if need specific format then *.csv
-    latest_file = max(list_of_files, key=os.path.getctime)
+            net.load_state_dict(torch.load(latest_file))
+            net.eval()
+            net = net.to(device)
+            words = predict(device, net, flags.initial_words, track_data['n_vocab'],
+                track_data['vocab_to_int'], track_data['int_to_vocab'], top_k=5)
 
-    net.load_state_dict(torch.load(latest_file))
-    net.eval()
-    net = net.to(device)
-    words = predict(device, net, flags.initial_words, n_vocab,
-        vocab_to_int, int_to_vocab, top_k=5)
-
+            instr_notes_model = decode_words_to_notes(words, track_n['key'])
+            notes_model['{}-{}'.format(track_n['key'], get_hash(8))] = instr_notes_model[track_n['key']]
+    
+    # all tracks 
     if(args.out_dir):
-        instance_id = str(uuid.uuid4()).replace('-','')[:8]
-        text_file = open('{}/{}-{}.txt'.format(args.out_dir, args.session, instance_id), "w")
-        n = text_file.write(' '.join(words))
-        text_file.close()
-    else:   
-        print(words)
+        midi_file = '{}/{}-{}.mid'.format(args.out_dir, args.session, get_hash(8))
+        write_notes_model(notes_model, midi_file)
+        print("generated predicted midi file as:",midi_file)
+    else:
+        print(notes_model)
+
 
 if __name__ == "__main__":
     main(sys.argv[1:]) 
