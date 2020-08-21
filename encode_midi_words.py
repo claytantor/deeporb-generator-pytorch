@@ -5,7 +5,7 @@ import json
 import music21 
 import uuid
 
-from utils import parse_midi_notes, write_notes_model, make_dir, write_instrument_words, find_files, write_notes_model_json
+from utils import parse_midi_notes, make_dir, write_instrument_words, find_files, write_notes_model_json, get_hash
 
 def char_range(c1, c2):
     """Generates the characters from `c1` to `c2`, inclusive."""
@@ -47,7 +47,7 @@ def main(argv):
             if(len(track_notes['notes'])>0):
                 track_dir = '{}/{}'.format(session_dir, track_notes['key'])
                 make_dir(track_dir)
-                track_file_name = "{}/{}-{}.json".format(track_dir, track_notes['key'], str(uuid.uuid4()).replace('-','')[2:8])
+                track_file_name = "{}/{}-{}.json".format(track_dir, track_notes['key'], get_hash(6))
                 write_notes_model_json(track_notes, track_file_name)
 
 

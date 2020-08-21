@@ -39,3 +39,64 @@ docker run --gpus all --shm-size=1g --ulimit \
 docker run --gpus all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 -it --rm -v $(pwd)/workspace:/workspace claytantor/deeporb-generator-pytorch:latest python predict.py --data_dir /workspace/txt/beethoven_words -s beethoven_words -t /workspace/training --midi_file /workspace/midi/beethoven/beeth3_2.mid
 
 docker run --gpus all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 -it --rm -v $(pwd)/workspace:/workspace claytantor/deeporb-generator-pytorch:latest python predict.py --data_dir /workspace/txt -s beethoven_words -t /workspace/training --midi_file /workspace/midi/beethoven/rondo.mid -o /workspace/midi
+
+
+docker run --gpus all --shm-size=1g --ulimit \
+   memlock=-1 --ulimit stack=67108864 -it --rm \
+   -v $(pwd)/workspace:/workspace \
+   claytantor/deeporb-generator-pytorch:latest python train.py \
+   --data_dir /workspace/txt \
+   --session beethoven_words_a \
+   --training_dir /workspace/training \
+   --number 4000
+
+docker run --gpus all --shm-size=1g --ulimit    memlock=-1 --ulimit stack=67108864 -it --rm    -v $(pwd)/workspace:/workspace    claytantor/deeporb-generator-pytorch:latest python train.py    --data_dir /workspace/txt    --session beethoven_words    --training_dir /workspace/training    --number 4000
+
+
+   docker run --gpus all --shm-size=1g --ulimit \
+  memlock=-1 --ulimit stack=67108864 -it \
+  --rm -v $(pwd)/workspace:/workspace \
+  claytantor/deeporb-generator-pytorch:latest python encode_midi_words.py \
+  -m /workspace/midi/midi_dubroom_org \
+  -o /workspace/txt -s midi_dubroom_org
+
+
+docker run --gpus all --shm-size=1g --ulimit   memlock=-1 --ulimit stack=67108864 -it   --rm -v $(pwd)/workspace:/workspace   claytantor/deeporb-generator-pytorch:latest python encode_midi_words.py   -m /workspace/midi/midi_dubroom_org   -o /workspace/txt -s midi_dubroom_org
+
+docker run --gpus all --shm-size=1g --ulimit    memlock=-1 --ulimit stack=67108864 -it --rm    -v $(pwd)/workspace:/workspace    claytantor/deeporb-generator-pytorch:latest python train.py    --data_dir /workspace/txt    --session midi_dubroom_org    --training_dir /workspace/training    --number 10000
+
+
+/workspace/midi/midi_dubroom_org/sure_dread_melodic_dub/11_Dis_Dread_Is_Dubbing.mid
+
+
+docker run --gpus all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 -it --rm -v $(pwd)/workspace:/workspace claytantor/deeporb-generator-pytorch:latest python predict.py --data_dir /workspace/txt -s midi_dubroom_org -t /workspace/training --midi_file /workspace/midi/midi_dubroom_org/sure_dread_melodic_dub/11_Dis_Dread_Is_Dubbing.mid -o /workspace/midi
+
+
+
+Transformer
+https://github.com/jason9693/MusicTransformer-pytorch
+
+Lstm
+https://towardsdatascience.com/illustrated-guide-to-lstms-and-gru-s-a-step-by-step-explanation-44e9eb85bf21#:~:text=An%20LSTM%20has%20a%20similar,operations%20within%20the%20LSTM's%20cells.&text=These%20operations%20are%20used%20to,to%20keep%20or%20forget%20information.
+
+https://www.youtube.com/watch?v=8HyCNIVRbSU&feature=emb_title
+
+https://towardsdatascience.com/understanding-rnns-lstm-and-seq2seq-model-using-a-practical-implementation-of-chatbot-in-2b9ab76d1eda
+
+
+docker run --gpus all --shm-size=1g --ulimit   memlock=-1 --ulimit stack=67108864 -it   --rm -v $(pwd)/workspace:/workspace   claytantor/deeporb-generator-pytorch:latest python encode_midi_words.py   -m /workspace/midi/collectionB_ClassicalArchives  -o /workspace/txt -s collectionB_ClassicalArchives
+
+docker run --gpus all --shm-size=1g --ulimit    memlock=-1 --ulimit stack=67108864 -it --rm  -v $(pwd)/workspace:/workspace  claytantor/deeporb-generator-pytorch:latest python train.py  --data_dir /workspace/txt  --session collectionB_ClassicalArchives  --training_dir /workspace/training  --number 20000
+
+
+--- 
+docker run --gpus all --shm-size=1g --ulimit   memlock=-1 --ulimit stack=67108864 -it   --rm -v $(pwd)/workspace:/workspace   claytantor/deeporb-generator-pytorch:latest python encode_midi_words.py   -m /workspace/midi/classical_b/sample_a  -o /workspace/txt -s sample_a
+
+docker run --gpus all --shm-size=1g --ulimit    memlock=-1 --ulimit stack=67108864 -it --rm --net=host -v $(pwd)/workspace:/workspace  claytantor/deeporb-generator-pytorch:latest python train.py  --data_dir /workspace/txt  --session sample_a  --training_dir /workspace/training  --number 4000 --push_host localhost:9091 --push_user admin --push_password Yazz23!
+
+---- transformer
+
+docker run --gpus all --shm-size=1g --ulimit    memlock=-1 --ulimit stack=67108864 -it --rm --net=host -v $(pwd)/workspace:/workspace  claytantor/deeporb-generator-pytorch:latest python train_transformer.py  
+
+# trombone, pizacatto_strings, timpani, church_organ, chello, chior_aahs, synth_strings, trumpet, viola, orchestral_harp, violin
+

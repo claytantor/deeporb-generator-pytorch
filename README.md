@@ -183,18 +183,10 @@ The file has a list of notes in common musical notation that will be turned into
 ```
 
 
-
 ## train.py - use the instrument note files to train the model 
 
 ```bash
-docker run --gpus all --shm-size=1g --ulimit \
-   memlock=-1 --ulimit stack=67108864 -it --rm \
-   -v $(pwd)/workspace:/workspace \
-   claytantor/deeporb-generator-pytorch:latest python train.py \
-   --data_dir /workspace/txt/beethoven_words \
-   --session beethoven_words \
-   --training_dir /workspace/training \
-   --number 4000
+docker run --gpus all --shm-size=1g --ulimit    memlock=-1 --ulimit stack=67108864 -it --rm    -v $(pwd)/workspace:/workspace    claytantor/deeporb-generator-pytorch:latest python train.py    --data_dir /workspace/txt    --session beethoven_words    --training_dir /workspace/training    --number 4000   
 ```
 
 

@@ -13,7 +13,7 @@ import numpy as np
 from collections import Counter
 import os
 from argparse import Namespace
-from utils import get_data_from_files, make_dir, parse_midi_notes, decode_words_to_notes, get_hash, write_notes_model
+from utils import get_data_from_files, make_dir, parse_midi_notes, decode_words_to_notes, get_hash, write_notes_model_midi, load_yaml
 from torchutils import print_info
 
 class RNNModule(nn.Module):
@@ -56,6 +56,8 @@ def predict(device, net, initial_words, n_vocab, vocab_to_int, int_to_vocab, top
     state_h = state_h.to(device)
     state_c = state_c.to(device)
 
+    output = []
+    print("initial_words", initial_words)
     for w in initial_words:
         ix = torch.tensor([[vocab_to_int[w]]]).to(device)
         output, (state_h, state_c) = net(ix, (state_h, state_c))
@@ -101,6 +103,8 @@ def main(argv):
         required=True, dest="training_dir", help="Training directory") 
       
     args = parser.parse_args()
+
+    config = load_yaml('./config.yml')['deeporb']
    
     training_dir = "{}/{}".format(args.training_dir, args.session)
     data_dir = "{}/{}".format(args.data_dir, args.session)
@@ -109,12 +113,14 @@ def main(argv):
     list_training_subfolders_with_paths = [f.path for f in os.scandir(training_dir) if f.is_dir()]
     list_data_subfolders_with_paths = [f.path for f in os.scandir(data_dir) if f.is_dir()]
 
-    notes_model_alltracks = parse_midi_notes(args.midi_file)
+    notes_model_unmapped = parse_midi_notes(args.midi_file)
+    notes_model_alltracks = list(filter(lambda x: x['key'] in config['predict']['instruments'], notes_model_unmapped))
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print_info(device)
     
     notes_model = {}
+
     # predict for each track based on the sample
     for track_n in notes_model_alltracks:
         fitered_data_path = list(filter(lambda x: track_n['key'] in x, list_data_subfolders_with_paths))
@@ -125,18 +131,21 @@ def main(argv):
 
             checkpoint_path = "{}/checkpoint_pt".format(fitered_training_path[0])
             source_dir = "{}/source".format(fitered_training_path[0])
-            
+
             flags = Namespace(  
                     train_dir=args.data_dir,
-                    seq_size=32,
+                    seq_size=16,
                     batch_size=16,
                     embedding_size=64,
                     lstm_size=64,
                     gradients_norm=5,
-                    initial_words=track_words[16:32],
+                    initial_words=track_words[0:16],
                     predict_top_k=int(args.words), 
                     checkpoint_path=checkpoint_path,
                 )
+
+
+            # print("initial_words",flags.initial_words)
 
             track_data = get_data_from_files(fitered_data_path[0], flags.batch_size, flags.seq_size)[track_n['key']]
 
@@ -152,14 +161,17 @@ def main(argv):
             words = predict(device, net, flags.initial_words, track_data['n_vocab'],
                 track_data['vocab_to_int'], track_data['int_to_vocab'], top_k=5)
 
-            instr_notes_model = decode_words_to_notes(words, track_n['key'])
+
+            instr_notes_model = decode_words_to_notes(words, track_n['key'], words_channel=track_n['channel'], words_program=track_n['program'])
+
             notes_model['{}-{}'.format(track_n['key'], get_hash(8))] = instr_notes_model[track_n['key']]
+
     
     # all tracks 
     if(args.out_dir):
         midi_file = '{}/{}-{}.mid'.format(args.out_dir, args.session, get_hash(8))
-        write_notes_model(notes_model, midi_file)
-        print("generated predicted midi file as:",midi_file)
+        write_notes_model_midi(notes_model, midi_file)
+
     else:
         print(notes_model)
 

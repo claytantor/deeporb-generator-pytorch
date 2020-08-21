@@ -9,14 +9,16 @@ import pretty_midi
 import random
 import uuid
 import re
+import yaml
+
 
 from typing import Optional, List, Tuple, Dict, Union, Any
 from collections import Counter
 from math import floor
 from pyknon.genmidi import Midi
 from pyknon.music import NoteSeq, Note
-
 from pretty_midi.constants import INSTRUMENT_MAP
+from music_helper import get_instruments, get_best_instrument_by_program
 
 
 def capitalize_all_words(all_words):
@@ -34,7 +36,7 @@ def make_dir(dir_name):
 
 def find_files(dir_name, pattern="*.txt", recursive=True):
     # Using '*' pattern 
-    all_files = [] 
+    all_files = []  
     for name in glob.glob('{}/**/{}'.format(dir_name, pattern), recursive=True): 
         all_files.append(name)
     return all_files
@@ -86,7 +88,7 @@ def get_data_from_files(data_dir, batch_size, seq_size):
     all_tracks = {}
 
     all_files = find_files(data_dir, pattern="*.json", recursive=True)
-    print(all_files)
+    # print(all_files)
 
     # read all files to memory
     for train_file in all_files:
@@ -99,7 +101,7 @@ def get_data_from_files(data_dir, batch_size, seq_size):
             all_tracks[instrument_key] = {}
             all_tracks[instrument_key]['words'] = []
 
-        print('reading file: {}'.format(train_file))
+        # print('reading file: {}'.format(train_file))
         with open(train_file, 'r') as f:
             t_f = f.read()
 
@@ -138,29 +140,53 @@ def write_notes_model_json(notes_model, file_name):
     f.close()
     print("wrote", file_name)
 
+def load_yaml(yamlFilePath):
+    cfg = None
+    with open(yamlFilePath, 'r') as ymlfile:
+        cfg = yaml.load(ymlfile, Loader=yaml.FullLoader)
+    return cfg
 
-def write_notes_model(notes_model, midi_file):
-    # new_stream = stream.Stream()
+
+def write_notes_model_midi(notes_model, midi_file):
+
     mf = music21.midi.MidiFile()
-    track_index = 0
+
+    # for right now lets just write a channel per track
+    track_index = 1
     for key in notes_model.keys():
-        # print(notes_model[key])
         key_mt = music21.midi.MidiTrack(index=track_index)
-        key_mt.setChannel(notes_model[key]['channel'])
-        
+        key_mt.setChannel(track_index)
+
+        # set instrument events for track
+        instrument_program = notes_model[key]['program']
+        instruments_available = get_instruments()
+        # print(instruments_available)
+        best_instrument = get_best_instrument_by_program(instrument_program, instruments_available)
+        print(best_instrument)
+
+        instrument_events = music21.midi.translate.instrumentToMidiEvents(best_instrument['music21_instrument'], includeDeltaTime=True, midiTrack=key_mt, channel=track_index)
+        key_mt.events.extend(instrument_events)
+     
         for note_item in notes_model[key]['notes']:
             midi_note = music21.note.Note(note_item['nameWithOctave'])
             midi_note.duration = music21.duration.Duration(note_item['duration']['type'])
             midi_note.volume.velocity = 120
             midiEvents = music21.midi.translate.noteToMidiEvents(midi_note)
+            for me1 in midiEvents:
+                me1.channel = track_index
+
             key_mt.events.extend(midiEvents)
 
         mf.tracks.append(key_mt)
+
         track_index += 1
 
     mf.open(midi_file, 'wb')
     mf.write()
     mf.close()
+
+
+
     print('wrote file:', midi_file)
   
 
@@ -171,19 +197,23 @@ def get_notes_list_from_track(midi_track):
 
     return track_notes
 
-def decode_words_to_notes(words_list, name, words_channel=1):
+def decode_words_to_notes(words_list, name, words_channel=1, words_program=0):
     # words_all = words.split()
     notes_model = {}
     notes_model[name] = {}
     notes_model[name]['notes'] = []
     notes_model[name]['channel'] = words_channel
+    notes_model[name]['program'] = words_program
     for note_word in words_list:
         note_word_parts = note_word.split('_')
         # print(note_word_parts)
+
+        new_duration = note_word_parts[2].replace('complex','eighth').replace('zero','eighth')
+
         note = {      
             'nameWithOctave': '{}{}'.format(note_word_parts[0], note_word_parts[1]),
             'duration':{
-                'type': note_word_parts[2] if note_word_parts[2] != 'complex' else 'eighth' 
+                'type': new_duration
             }
         }
         notes_model[name]['notes'].append(note)
@@ -199,6 +229,11 @@ def get_notes_list_from_stream(midi_stream):
     stream_notes = []
 
     for note in midi_stream.recurse().addFilter(noteFilter):
+
+        # dont allow zero notes
+        if note.duration.quarterLength == 0:
+            note.duration.quarterLength == 0.166666666
+
         note_dict = {
             'nameWithOctave': note.nameWithOctave,
             'fullName': note.fullName,
@@ -220,19 +255,20 @@ def get_notes_list_from_stream(midi_stream):
 
 def parse_midi_notes(midi_fname):  
 
-    p_midi = pretty_midi.PrettyMIDI(midi_fname)
+    tracks_all = []
 
-    mf=music21.midi.MidiFile()
     try:
+        p_midi = pretty_midi.PrettyMIDI(midi_fname)
+
+        mf=music21.midi.MidiFile()
         mf.open(midi_fname)
         mf.read()
         mf.close()
     except:
         print("Skipping file: Midi file has bad formatting")
-        return
-    
-    tracks_all = []
+        return []
 
+    channel_id = 1 
     for track in mf.tracks:
         if(track.hasNotes()):
             if(len(track.getProgramChanges())>0):
@@ -242,9 +278,12 @@ def parse_midi_notes(midi_fname):
                 track_model['name'] = i_name
                 i_key = re.sub(r'[^A-Za-z ]', '', i_name)
                 i_key = " ".join(i_key.split())
-                track_model['key'] = i_key.replace(' ','_').lower()              
+                track_model['key'] = i_key.replace(' ','_').lower()  
+                track_model['i_key'] = i_key.replace(' ','_').lower()          
                 track_model['program'] = track.getProgramChanges()[0]
+                track_model['channel'] = channel_id
                 tracks_all.append(track_model)
+                channel_id += 1
     
     return tracks_all
                 
@@ -295,26 +334,26 @@ def levenshtein_ratio_and_distance(s, t, ratio_calc = False):
         return "The strings are {} edits away".format(distance[row][col])
 
 
-def get_best_instrument_fast(instrument_name, instruments_map):
+# def get_best_instrument_fast(instrument_name, instruments_map):
 
-    if instrument_name == None:
-        program_id_item = pretty_midi.instrument_name_to_program(instruments_map[0])
-        item_class = pretty_midi.program_to_instrument_class(instruments_map[0])
-        return {'name':instruments_map[0], 'program_id':program_id_item, 'class_name':item_class}
-    elif instrument_name in instruments_map:
-        program_id_item = pretty_midi.instrument_name_to_program(instrument_name)
-        item_class = pretty_midi.program_to_instrument_class(program_id_item)
-        return {'name':instrument_name, 'program_id':program_id_item, 'class_name':item_class}
-    else:
-        for iname in instruments_map:
-            if instrument_name.lower() in iname.lower():
-                program_id_item = pretty_midi.instrument_name_to_program(iname)
-                item_class = pretty_midi.program_to_instrument_class(program_id_item)
-                return {'name':iname, 'program_id':program_id_item, 'class_name':item_class}
-            else:
-                program_id_item = pretty_midi.instrument_name_to_program(instruments_map[0])
-                item_class = pretty_midi.program_to_instrument_class(program_id_item)
-                return {'name':iname, 'program_id':program_id_item, 'class_name':item_class}
+#     if instrument_name == None:
+#         program_id_item = pretty_midi.instrument_name_to_program(instruments_map[0])
+#         item_class = pretty_midi.program_to_instrument_class(instruments_map[0])
+#         return {'name':instruments_map[0], 'program_id':program_id_item, 'class_name':item_class}
+#     elif instrument_name in instruments_map:
+#         program_id_item = pretty_midi.instrument_name_to_program(instrument_name)
+#         item_class = pretty_midi.program_to_instrument_class(program_id_item)
+#         return {'name':instrument_name, 'program_id':program_id_item, 'class_name':item_class}
+#     else:
+#         for iname in instruments_map:
+#             if instrument_name.lower() in iname.lower():
+#                 program_id_item = pretty_midi.instrument_name_to_program(iname)
+#                 item_class = pretty_midi.program_to_instrument_class(program_id_item)
+#                 return {'name':iname, 'program_id':program_id_item, 'class_name':item_class}
+#             else:
+#                 program_id_item = pretty_midi.instrument_name_to_program(instruments_map[0])
+#                 item_class = pretty_midi.program_to_instrument_class(program_id_item)
+#                 return {'name':iname, 'program_id':program_id_item, 'class_name':item_class}
 
 def get_best_instrument(instrument_name, instruments_map):
 
@@ -340,3 +379,7 @@ def get_best_instrument(instrument_name, instruments_map):
     list_reverse = sorted(name_lookup, key=lambda instrument: instrument['ratio'], reverse=True)
     # value = random.randint(0, len(name_lookup)-1)
     return list_reverse[0]
+
+
+if __name__ == "__main__":
+    pass
