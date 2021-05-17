@@ -18,7 +18,7 @@ from math import floor
 from pyknon.genmidi import Midi
 from pyknon.music import NoteSeq, Note
 from pretty_midi.constants import INSTRUMENT_MAP
-from music_helper import get_instruments, get_best_instrument_by_program
+from music_helper import get_instruments, get_best_instrument_by_program, midiEventsToTempo
 
 
 def capitalize_all_words(all_words):
@@ -147,7 +147,7 @@ def load_yaml(yamlFilePath):
     return cfg
 
 
-def write_notes_model_midi(notes_model, midi_file):
+def write_notes_model_midi(notes_model, midi_file, tempo=80, time_signiture="3/4"):
 
     mf = music21.midi.MidiFile()
 
@@ -155,14 +155,26 @@ def write_notes_model_midi(notes_model, midi_file):
     track_index = 1
     for key in notes_model.keys():
         key_mt = music21.midi.MidiTrack(index=track_index)
+
+        # channel
         key_mt.setChannel(track_index)
+
+        #tempo
+        mm = music21.tempo.MetronomeMark(number=tempo)
+        tempo_events = music21.midi.translate.tempoToMidiEvents(mm)
+        key_mt.events.extend(tempo_events)
+
+        #time sig
+        ts = music21.meter.TimeSignature(time_signiture)
+        ts_events = music21.midi.translate.timeSignatureToMidiEvents(ts)
+        key_mt.events.extend(ts_events)
 
         # set instrument events for track
         instrument_program = notes_model[key]['program']
         instruments_available = get_instruments()
         # print(instruments_available)
         best_instrument = get_best_instrument_by_program(instrument_program, instruments_available)
-        print(best_instrument)
+        # print(best_instrument)
 
         instrument_events = music21.midi.translate.instrumentToMidiEvents(best_instrument['music21_instrument'], includeDeltaTime=True, midiTrack=key_mt, channel=track_index)
         key_mt.events.extend(instrument_events)
@@ -235,6 +247,7 @@ def get_notes_list_from_stream(midi_stream):
             note.duration.quarterLength == 0.166666666
 
         note_dict = {
+            'music21_note': note,
             'nameWithOctave': note.nameWithOctave,
             'fullName': note.fullName,
             'word': '{}_{}_{}'.format(note.pitch.name, str(note.pitch.octave), str(note.duration.type)).lower(),
@@ -273,6 +286,20 @@ def parse_midi_notes(midi_fname):
         if(track.hasNotes()):
             if(len(track.getProgramChanges())>0):
                 track_model = {}
+
+                # track_stream = music21.midi.translate.midiTrackToStream(track)
+                # print(track.events)
+                # tempo = music21.midi.translate.midiEventsToTempo(track.events)
+                notes_all = get_notes_list_from_track(track)
+                music_21_notes = list(map(lambda x: x['music21_note'], notes_all))
+                notes_events = []
+                for m21_n in music_21_notes:
+                    note_events_note = music21.midi.translate.noteToMidiEvents(m21_n) 
+                    notes_events.extend(note_events_note)
+
+                tempo = music21.midi.translate.midiEventsToTempo(notes_events)
+                # ts = music21.midi.translate.midiEventsToTimeSignature(notes_events)
+
                 i_name = pretty_midi.program_to_instrument_name(track.getProgramChanges()[0])
                 track_model['notes'] = get_notes_list_from_track(track)
                 track_model['name'] = i_name
@@ -282,6 +309,8 @@ def parse_midi_notes(midi_fname):
                 track_model['i_key'] = i_key.replace(' ','_').lower()          
                 track_model['program'] = track.getProgramChanges()[0]
                 track_model['channel'] = channel_id
+                track_model['tempo'] = tempo.number
+                # track_model['ratio'] = ts.ratioString
                 tracks_all.append(track_model)
                 channel_id += 1
     

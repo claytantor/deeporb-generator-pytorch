@@ -16,9 +16,9 @@ from argparse import Namespace
 from utils import get_data_from_files, make_dir, parse_midi_notes, decode_words_to_notes, get_hash, write_notes_model_midi, load_yaml
 from torchutils import print_info
 
-class RNNModule(nn.Module):
+class LSTMNetwork(nn.Module):
     def __init__(self, n_vocab, seq_size, embedding_size, lstm_size):
-        super(RNNModule, self).__init__()
+        super(LSTMNetwork, self).__init__()
         self.seq_size = seq_size
         self.lstm_size = lstm_size
         self.embedding = nn.Embedding(n_vocab, embedding_size)
@@ -46,7 +46,6 @@ def get_batches(in_text, out_text, batch_size, seq_size):
 def get_loss_and_train_op(net, lr=0.001):
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(net.parameters(), lr=lr)
-
     return criterion, optimizer
 
 def predict(device, net, initial_words, n_vocab, vocab_to_int, int_to_vocab, top_k=5):
@@ -149,7 +148,7 @@ def main(argv):
 
             track_data = get_data_from_files(fitered_data_path[0], flags.batch_size, flags.seq_size)[track_n['key']]
 
-            net = RNNModule(track_data['n_vocab'], flags.seq_size,
+            net = LSTMNetwork(track_data['n_vocab'], flags.seq_size,
                         flags.embedding_size, flags.lstm_size)
 
             list_of_files = glob.glob('{}/*'.format(checkpoint_path)) 

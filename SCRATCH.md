@@ -100,3 +100,5 @@ docker run --gpus all --shm-size=1g --ulimit    memlock=-1 --ulimit stack=671088
 
 # trombone, pizacatto_strings, timpani, church_organ, chello, chior_aahs, synth_strings, trumpet, viola, orchestral_harp, violin
 
+docker run --gpus all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 -it --rm -v $(pwd)/workspace:/workspace claytantor/deeporb-generator-pytorch:latest python predict.py --data_dir /workspace/txt -s sample_b -t /workspace/training --midi_file "/workspace/midi/collectionB_ClassicalArchives/Greats/ca/Mozart/Viennese Sonatinas K439b n2 1mov.mid" -o /workspace/midi
+

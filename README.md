@@ -85,7 +85,7 @@ Current cuda device  0
 
 We have created a package of public domain Beethoven files to use for running the scrip base, for these example you should put them under the `/workspace/midi/beethoven` directory.
 
-[Beethoven Midi Files](https://deeporb-vanguard-dev.s3.amazonaws.com/mid/deeporb_beethoven_collection.tar.gz)
+[Beethoven and Mozart Midi Files](https://s3-us-west-2.amazonaws.com/deeporb.net/share/github/deeporb-generator-pytorch/sample_beethoven_mozart_a.tar.gz)
 
 ## encode_midi_words.py - encoding midi to words
 The use of the encoder is intended to allow for the translation of midi events into words that the LSTM Network can learn from.
@@ -99,7 +99,6 @@ parser.add_argument("-o", "--out", action="store", required=True, dest="out", he
 parser.add_argument("-s", "--session", action="store", required=True, dest="session", help="session name")
 ```
 
-
 The three arguments are used to recursively scan through a directory for all miding files and segement them by midi instrument and then place note files in the heirchy by insrument under the session directory.
 
 This will allow a dirctory with a collection of songs in a specific folder to be the source of training by all the shared instruments.
@@ -109,14 +108,14 @@ docker run --gpus all --shm-size=1g --ulimit \
   memlock=-1 --ulimit stack=67108864 -it \
   --rm -v $(pwd)/workspace:/workspace \
   claytantor/deeporb-generator-pytorch:latest python encode_midi_words.py \
-  -m /workspace/midi/beethoven \
-  -o /workspace/txt -s beethoven_words
+  -m /workspace/midi/sample_a \
+  -o /workspace/txt -s sample_a
 ```
 
 will generate JSON files that encode each track as a instrument in the tree hierchy under the session name:
 
 ```bash
-beethoven_words/
+sample_a/
 ├── acoustic_grand_piano
 │   ├── acoustic_grand_piano-5327f0.json
 │   ├── acoustic_grand_piano-5fd3f0.json
@@ -186,12 +185,22 @@ The file has a list of notes in common musical notation that will be turned into
 ## train.py - use the instrument note files to train the model 
 
 ```bash
-docker run --gpus all --shm-size=1g --ulimit    memlock=-1 --ulimit stack=67108864 -it --rm    -v $(pwd)/workspace:/workspace    claytantor/deeporb-generator-pytorch:latest python train.py    --data_dir /workspace/txt    --session beethoven_words    --training_dir /workspace/training    --number 4000   
+docker run --gpus all --shm-size=1g --ulimit \
+   memlock=-1 --ulimit stack=67108864 -it --rm \
+   -v $(pwd)/workspace:/workspace   \
+   claytantor/deeporb-generator-pytorch:latest \
+   python train.py --data_dir /workspace/txt \
+   --session sample_a --training_dir /workspace/training \
+   --number 4000   
 ```
-
 
 ## predict.py - use your training models to generate midi
 
 ```bash
-docker run --gpus all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 -it --rm -v $(pwd)/workspace:/workspace claytantor/deeporb-generator-pytorch:latest python predict.py --data_dir /workspace/txt -s beethoven_words -t /workspace/training --midi_file /workspace/midi/beethoven/rondo.mid -o /workspace/midi
+docker run --gpus all --shm-size=1g --ulimit memlock=-1 \
+   --ulimit stack=67108864 -it --rm -v $(pwd)/workspace:/workspace \
+   claytantor/deeporb-generator-pytorch:latest \
+   python predict.py --data_dir /workspace/txt \
+   -s sample_a -t /workspace/training \
+   --midi_file /workspace/midi/beethoven/rondo.mid -o /workspace/midi
 ```

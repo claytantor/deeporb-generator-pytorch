@@ -2,6 +2,8 @@ import music21
 import pretty_midi
 import re
 import random
+import argparse
+
 
 all_instruments = [
     music21.instrument.Accordion,
@@ -153,3 +155,78 @@ def get_best_instrument_by_program(program_id, available_instruments, autoassign
         random.choice(available_instruments)
     else:
         raise ValueError('program id not found')
+
+def midiEventsToTempo(eventList):
+    '''
+    Convert a single MIDI event into a music21 Tempo object.
+    TODO: Need Tests
+    '''
+    # from music21 import midi as midiModule
+    # from music21 import tempo
+
+    print(eventList[:4])
+    if not music21.common.isListLike(eventList):
+        event = eventList
+    else:  # get the second event; first is delta time
+        event = eventList[1]
+    # get microseconds per quarter
+    print(event.data)
+    mspq = getNumber(event.data, 3)[0]  # first data is number
+    bpm = round(60000000 / mspq, 2)
+    # post = midiModule.getNumbersAsList(event.data)
+    # environLocal.printDebug(['midiEventsToTempo, got bpm', bpm])
+    mm = music21.tempo.MetronomeMark(number=bpm)
+    return mm
+
+def getNumber(midiStr, length):
+    '''
+    Return the value of a string byte or bytes if length > 1
+    from an 8-bit string or bytes object
+    Then, return the remaining string or bytes object
+    The `length` is the number of chars to read.
+    This will sum a length greater than 1 if desired.
+    Note that MIDI uses big-endian for everything.
+    This is the inverse of Python's chr() function.
+    >>> midi.getNumber('test', 0)
+    (0, 'test')
+    Given bytes, return bytes:
+    >>> midi.getNumber(b'test', 0)
+    (0, b'test')
+    >>> midi.getNumber('test', 2)
+    (29797, 'st')
+    >>> midi.getNumber(b'test', 4)
+    (1952805748, b'')
+    '''
+    summation = 0
+    if not music21.common.isNum(midiStr):
+        for i in range(length):
+            print(i, midiStr)
+            midiStrOrNum = midiStr[i]
+            if common.isNum(midiStrOrNum):
+                summation = (summation << 8) + midiStrOrNum
+            else:
+                summation = (summation << 8) + ord(midiStrOrNum)
+        return summation, midiStr[length:]
+    else:  # midiStr is a number...
+        midNum = midiStr
+        summation = midNum - ((midNum >> (8 * length)) << (8 * length))
+        bigBytes = midNum - summation
+        return summation, bigBytes
+
+def main(argv):
+
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("-a", "--action", action="store",
+        required=False, dest="action", help="action type: plot") 
+
+    parser.add_argument("-m", "--midi", action="store",
+        required=False, dest="midi", help="The midi file") 
+      
+    args = parser.parse_args()
+
+    print("hello world")
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:]) 
