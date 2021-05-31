@@ -15,8 +15,8 @@ import yaml
 from typing import Optional, List, Tuple, Dict, Union, Any
 from collections import Counter
 from math import floor
-from pyknon.genmidi import Midi
-from pyknon.music import NoteSeq, Note
+# from pyknon.genmidi import Midi
+# from pyknon.music import NoteSeq, Note
 from pretty_midi.constants import INSTRUMENT_MAP
 from music_helper import get_instruments, get_best_instrument_by_program, midiEventsToTempo
 
