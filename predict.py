@@ -56,7 +56,7 @@ def predict(device, net, initial_words, n_vocab, vocab_to_int, int_to_vocab, top
     state_c = state_c.to(device)
 
     output = []
-    print("initial_words", initial_words)
+    # print("initial_words", initial_words)
     for w in initial_words:
         ix = torch.tensor([[vocab_to_int[w]]]).to(device)
         output, (state_h, state_c) = net(ix, (state_h, state_c))
@@ -79,40 +79,42 @@ def predict(device, net, initial_words, n_vocab, vocab_to_int, int_to_vocab, top
     return initial_words
 
 
-def main(argv):
 
-    parser = argparse.ArgumentParser()
+#==================
+def generate_midi(data_dir, session, midi_file, words_top_k, out_dir, training_dir, config):
 
-    parser.add_argument("-d", "--data_dir", action="store",
-        required=False, dest="data_dir", help="Source training text directory") 
+    # parser = argparse.ArgumentParser()
 
-    parser.add_argument("-s", "--session", action="store",
-        required=True,  dest="session", help="the sessionid for the training")    
+    # parser.add_argument("-d", "--data_dir", action="store",
+    #     required=False, dest="data_dir", help="Source training text directory") 
+
+    # parser.add_argument("-s", "--session", action="store",
+    #     required=True,  dest="session", help="the sessionid for the training")    
                                            
-    parser.add_argument("-f", "--midi_file", action="store",
-        required=False, dest="midi_file", help="Source midi file used for multi instument influence") 
+    # parser.add_argument("-f", "--midi_file", action="store",
+    #     required=False, dest="midi_file", help="Source midi file used for multi instument influence") 
 
-    parser.add_argument("-w", "--words", action="store", default="5",
-        required=False, dest="words", help="Number of words")   
+    # parser.add_argument("-w", "--words", action="store", default="5",
+    #     required=False, dest="words", help="Number of words")   
     
-    parser.add_argument("-o", "--out_dir", action="store",
-        required=False, dest="out_dir", help="save predictions to directory")   
+    # parser.add_argument("-o", "--out_dir", action="store",
+    #     required=False, dest="out_dir", help="save predictions to directory")   
 
-    parser.add_argument("-t", "--training_dir", action="store",
-        required=True, dest="training_dir", help="Training directory") 
+    # parser.add_argument("-t", "--training_dir", action="store",
+    #     required=True, dest="training_dir", help="Training directory") 
       
-    args = parser.parse_args()
+    # args = parser.parse_args()
 
-    config = load_yaml('./config.yml')['deeporb']
+    # config = load_yaml('./config.yml')['deeporb']
    
-    training_dir = "{}/{}".format(args.training_dir, args.session)
-    data_dir = "{}/{}".format(args.data_dir, args.session)
+    # training_dir = "{}/{}".format(args.training_dir, args.session)
+    # data_dir = "{}/{}".format(args.data_dir, args.session)
 
     # get all the instruments under
     list_training_subfolders_with_paths = [f.path for f in os.scandir(training_dir) if f.is_dir()]
     list_data_subfolders_with_paths = [f.path for f in os.scandir(data_dir) if f.is_dir()]
 
-    notes_model_unmapped = parse_midi_notes(args.midi_file)
+    notes_model_unmapped = parse_midi_notes(midi_file)
     notes_model_alltracks = list(filter(lambda x: x['key'] in config['predict']['instruments'], notes_model_unmapped))
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -132,14 +134,14 @@ def main(argv):
             source_dir = "{}/source".format(fitered_training_path[0])
 
             flags = Namespace(  
-                    train_dir=args.data_dir,
+                    train_dir=data_dir,
                     seq_size=16,
                     batch_size=16,
                     embedding_size=64,
                     lstm_size=64,
                     gradients_norm=5,
                     initial_words=track_words[0:16],
-                    predict_top_k=int(args.words), 
+                    predict_top_k=int(words_top_k), 
                     checkpoint_path=checkpoint_path,
                 )
 
@@ -167,12 +169,48 @@ def main(argv):
 
     
     # all tracks 
-    if(args.out_dir):
-        midi_file = '{}/{}-{}.mid'.format(args.out_dir, args.session, get_hash(8))
+    if(out_dir):
+        midi_file = '{}/{}-{}.mid'.format(out_dir, session, get_hash(8))
         write_notes_model_midi(notes_model, midi_file)
+        return midi_file
 
     else:
         print(notes_model)
+        return None
+
+#=============
+
+
+def main(argv):
+
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("-d", "--data_dir", action="store",
+        required=False, dest="data_dir", help="Source training text directory") 
+
+    parser.add_argument("-s", "--session", action="store",
+        required=True,  dest="session", help="the sessionid for the training")    
+                                           
+    parser.add_argument("-f", "--midi_file", action="store",
+        required=False, dest="midi_file", help="Source midi file used for multi instument influence") 
+
+    parser.add_argument("-w", "--topk", action="store", default="5",
+        required=False, dest="topk", help="Number of top K words")   
+    
+    parser.add_argument("-o", "--out_dir", action="store",
+        required=False, dest="out_dir", help="save predictions to directory")   
+
+    parser.add_argument("-t", "--training_dir", action="store",
+        required=True, dest="training_dir", help="Training directory") 
+      
+    args = parser.parse_args()
+
+    config = load_yaml('./config.yml')['deeporb']
+   
+    training_dir = "{}/{}".format(args.training_dir, args.session)
+    data_dir = "{}/{}".format(args.data_dir, args.session)
+
+    generate_midi(data_dir, args.session, args.midi_file, args.topk, args.out_dir, training_dir, config)
 
 
 if __name__ == "__main__":

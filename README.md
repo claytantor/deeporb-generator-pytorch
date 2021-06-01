@@ -181,7 +181,6 @@ The file has a list of notes in common musical notation that will be turned into
 }
 ```
 
-
 ## train.py - use the instrument note files to train the model 
 
 ```bash
@@ -196,6 +195,17 @@ docker run --gpus all --shm-size=1g --ulimit \
 
 ## predict.py - use your training models to generate midi
 
+### virtualenv
+
+```
+pyenv activate deeporb-generator-pytorch
+
+python predict.py --data_dir ./workspace/txt \
+   -s sample_a -t ./workspace/training \
+   --midi_file ./workspace/midi/beethoven/rondo.mid -o ./workspace/midi
+```
+
+### from docker
 ```bash
 docker run --gpus all --shm-size=1g --ulimit memlock=-1 \
    --ulimit stack=67108864 -it --rm -v $(pwd)/workspace:/workspace \
@@ -203,4 +213,13 @@ docker run --gpus all --shm-size=1g --ulimit memlock=-1 \
    python predict.py --data_dir /workspace/txt \
    -s sample_a -t /workspace/training \
    --midi_file /workspace/midi/beethoven/rondo.mid -o /workspace/midi
+```
+
+## app.py - make a flask webservice
+
+### from docker
+```bash
+docker run -p 5000:5000 --gpus all --shm-size=1g --ulimit memlock=-1 \
+    --ulimit stack=67108864 -it --rm -v $(pwd)/workspace:/workspace \
+    claytantor/deeporb-generator-pytorch:latest
 ```

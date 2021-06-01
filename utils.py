@@ -11,15 +11,11 @@ import uuid
 import re
 import yaml
 
-
 from typing import Optional, List, Tuple, Dict, Union, Any
 from collections import Counter
 from math import floor
-# from pyknon.genmidi import Midi
-# from pyknon.music import NoteSeq, Note
 from pretty_midi.constants import INSTRUMENT_MAP
 from music_helper import get_instruments, get_best_instrument_by_program, midiEventsToTempo
-
 
 def capitalize_all_words(all_words):
     capitalized = []
@@ -363,34 +359,11 @@ def levenshtein_ratio_and_distance(s, t, ratio_calc = False):
         return "The strings are {} edits away".format(distance[row][col])
 
 
-# def get_best_instrument_fast(instrument_name, instruments_map):
 
-#     if instrument_name == None:
-#         program_id_item = pretty_midi.instrument_name_to_program(instruments_map[0])
-#         item_class = pretty_midi.program_to_instrument_class(instruments_map[0])
-#         return {'name':instruments_map[0], 'program_id':program_id_item, 'class_name':item_class}
-#     elif instrument_name in instruments_map:
-#         program_id_item = pretty_midi.instrument_name_to_program(instrument_name)
-#         item_class = pretty_midi.program_to_instrument_class(program_id_item)
-#         return {'name':instrument_name, 'program_id':program_id_item, 'class_name':item_class}
-#     else:
-#         for iname in instruments_map:
-#             if instrument_name.lower() in iname.lower():
-#                 program_id_item = pretty_midi.instrument_name_to_program(iname)
-#                 item_class = pretty_midi.program_to_instrument_class(program_id_item)
-#                 return {'name':iname, 'program_id':program_id_item, 'class_name':item_class}
-#             else:
-#                 program_id_item = pretty_midi.instrument_name_to_program(instruments_map[0])
-#                 item_class = pretty_midi.program_to_instrument_class(program_id_item)
-#                 return {'name':iname, 'program_id':program_id_item, 'class_name':item_class}
 
 def get_best_instrument(instrument_name, instruments_map):
 
     name_lookup = []
-    # print(instrument_name)
-
-    # program_id_instrument_name = pretty_midi.instrument_name_to_program(instrument_model['gm_name'])
-    # instrument_class = pretty_midi.program_to_instrument_class(program_id_instrument_name)
 
     for iname in instruments_map:
         # print('instrument_name',instrument_name, iname)
