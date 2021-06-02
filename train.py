@@ -141,8 +141,9 @@ def train(device,
                 print('Epoch: {}/{}'.format(e, iteration_count),
                       'Iteration: {}'.format(iteration),
                       'Loss: {}'.format(loss_value))
-                set_gauge(t_gauge, loss_value, "loss_{}_{}".format(session_id, instrument_key), 
-                    g_registry, p_host=push_host)
+                if push_host != None:
+                    set_gauge(t_gauge, loss_value, "loss_{}_{}".format(session_id, instrument_key), 
+                        g_registry, p_host=push_host)
             
             if iteration % 1000 == 0:
                 # ''.join(predict(device, net, flags.initial_words, n_vocab,
@@ -179,17 +180,17 @@ def main(argv):
     parser.add_argument("-t", "--training_dir", action="store",
         required=False, dest="training_dir", help="Training directory") 
 
-    parser.add_argument("-m", "--push_host", action="store",
-        required=True, dest="push_host", help="Host to push metrics to") 
+    parser.add_argument("-m", "--push_host", action="store", default=None,
+        required=False, dest="push_host", help="Host to push metrics to") 
 
     parser.add_argument("-u", "--push_user", action="store",
-        required=True, dest="push_user", help="Push metric user") 
+        required=False, dest="push_user", help="Push metric user") 
 
     parser.add_argument("-p", "--push_password", action="store",
-        required=True, dest="push_password", help="Push metric password") 
+        required=False, dest="push_password", help="Push metric password") 
 
     parser.add_argument("-r", "--learning_rate", action="store", default="0.001",
-        required=False, dest="learning_rate", help="Learnng rate") 
+        required=False, dest="learning_rate", help="Learning rate") 
       
     args = parser.parse_args()
         
@@ -220,8 +221,9 @@ def main(argv):
 
     # print(all_tracks)
 
-    os.environ['PUSH_USER'] = args.push_user
-    os.environ['PUSH_PASSWORD'] = args.push_password
+    if args.push_host != None:
+        os.environ['PUSH_USER'] = args.push_user
+        os.environ['PUSH_PASSWORD'] = args.push_password
 
     print('using metrics host', args.push_host)
     
