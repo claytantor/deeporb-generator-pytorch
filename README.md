@@ -217,9 +217,14 @@ docker run --gpus all --shm-size=1g --ulimit memlock=-1 \
 
 ## app.py - make a flask webservice
 
+### running the flask app
+FLASK_ENV=development FLASK_APP=app.py APP_CONFIG=workspace/config/beethoven_local.cfg flask run --host=0.0.0.0 --port=8001
+
+
+
 ### from docker
 ```bash
-docker run -p 5000:5000 --gpus all --shm-size=1g --ulimit memlock=-1 \
+docker run -p 8001:8001 --gpus all --shm-size=1g --ulimit memlock=-1 \
     --ulimit stack=67108864 -it --rm -v $(pwd)/workspace:/workspace \
     claytantor/deeporb-generator-pytorch:latest
 ```

@@ -83,38 +83,13 @@ def predict(device, net, initial_words, n_vocab, vocab_to_int, int_to_vocab, top
 #==================
 def generate_midi(data_dir, session, midi_file, words_top_k, out_dir, training_dir, config):
 
-    # parser = argparse.ArgumentParser()
-
-    # parser.add_argument("-d", "--data_dir", action="store",
-    #     required=False, dest="data_dir", help="Source training text directory") 
-
-    # parser.add_argument("-s", "--session", action="store",
-    #     required=True,  dest="session", help="the sessionid for the training")    
-                                           
-    # parser.add_argument("-f", "--midi_file", action="store",
-    #     required=False, dest="midi_file", help="Source midi file used for multi instument influence") 
-
-    # parser.add_argument("-w", "--words", action="store", default="5",
-    #     required=False, dest="words", help="Number of words")   
-    
-    # parser.add_argument("-o", "--out_dir", action="store",
-    #     required=False, dest="out_dir", help="save predictions to directory")   
-
-    # parser.add_argument("-t", "--training_dir", action="store",
-    #     required=True, dest="training_dir", help="Training directory") 
-      
-    # args = parser.parse_args()
-
-    # config = load_yaml('./config.yml')['deeporb']
-   
-    # training_dir = "{}/{}".format(args.training_dir, args.session)
-    # data_dir = "{}/{}".format(args.data_dir, args.session)
 
     # get all the instruments under
     list_training_subfolders_with_paths = [f.path for f in os.scandir(training_dir) if f.is_dir()]
     list_data_subfolders_with_paths = [f.path for f in os.scandir(data_dir) if f.is_dir()]
 
     notes_model_unmapped = parse_midi_notes(midi_file)
+    # print(notes_model_unmapped)
     notes_model_alltracks = list(filter(lambda x: x['key'] in config['predict']['instruments'], notes_model_unmapped))
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -171,6 +146,7 @@ def generate_midi(data_dir, session, midi_file, words_top_k, out_dir, training_d
     # all tracks 
     if(out_dir):
         midi_file = '{}/{}-{}.mid'.format(out_dir, session, get_hash(8))
+        # print(notes_model)
         write_notes_model_midi(notes_model, midi_file)
         return midi_file
 

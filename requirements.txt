@@ -14,3 +14,4 @@ prometheus-client==0.8.0
 PyYAML>=5.1
 flask
 pyFluidSynth==1.3.0
+midi2audio==0.1.1
