@@ -83,14 +83,17 @@ def predict(device, net, initial_words, n_vocab, vocab_to_int, int_to_vocab, top
 #==================
 def generate_midi(data_dir, session, midi_file, words_top_k, out_dir, training_dir, config):
 
-
+    # print("midi_file=",midi_file, "out_dir=",out_dir)
     # get all the instruments under
     list_training_subfolders_with_paths = [f.path for f in os.scandir(training_dir) if f.is_dir()]
+    #print("list_training_subfolders_with_paths=",list_training_subfolders_with_paths)
+
     list_data_subfolders_with_paths = [f.path for f in os.scandir(data_dir) if f.is_dir()]
 
     notes_model_unmapped = parse_midi_notes(midi_file)
-    # print(notes_model_unmapped)
+    # print("notes_model_unmapped=", notes_model_unmapped)
     notes_model_alltracks = list(filter(lambda x: x['key'] in config['predict']['instruments'], notes_model_unmapped))
+    # print("notes_model_alltracks=", notes_model_alltracks)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print_info(device)
@@ -99,14 +102,16 @@ def generate_midi(data_dir, session, midi_file, words_top_k, out_dir, training_d
 
     # predict for each track based on the sample
     for track_n in notes_model_alltracks:
-        fitered_data_path = list(filter(lambda x: track_n['key'] in x, list_data_subfolders_with_paths))
-        fitered_training_path = list(filter(lambda x: track_n['key'] in x, list_training_subfolders_with_paths))
+        filtered_data_path = list(filter(lambda x: track_n['key'] in x, list_data_subfolders_with_paths))
+        filtered_training_path = list(filter(lambda x: track_n['key'] in x, list_training_subfolders_with_paths))
 
-        if(len(fitered_data_path)>0 and len(fitered_training_path)>0):
+        #print(filtered_data_path, filtered_training_path, track_n['key'])
+
+        if(len(filtered_data_path)>0 and len(filtered_training_path)>0):
             track_words = list(map(lambda x : x['word'], track_n['notes']))
 
-            checkpoint_path = "{}/checkpoint_pt".format(fitered_training_path[0])
-            source_dir = "{}/source".format(fitered_training_path[0])
+            checkpoint_path = "{}/checkpoint_pt".format(filtered_training_path[0])
+            source_dir = "{}/source".format(filtered_training_path[0])
 
             flags = Namespace(  
                     train_dir=data_dir,
@@ -123,7 +128,7 @@ def generate_midi(data_dir, session, midi_file, words_top_k, out_dir, training_d
 
             # print("initial_words",flags.initial_words)
 
-            track_data = get_data_from_files(fitered_data_path[0], flags.batch_size, flags.seq_size)[track_n['key']]
+            track_data = get_data_from_files(filtered_data_path[0], flags.batch_size, flags.seq_size)[track_n['key']]
 
             net = LSTMNetwork(track_data['n_vocab'], flags.seq_size,
                         flags.embedding_size, flags.lstm_size)
@@ -137,16 +142,17 @@ def generate_midi(data_dir, session, midi_file, words_top_k, out_dir, training_d
             words = predict(device, net, flags.initial_words, track_data['n_vocab'],
                 track_data['vocab_to_int'], track_data['int_to_vocab'], top_k=5)
 
-
             instr_notes_model = decode_words_to_notes(words, track_n['key'], words_channel=track_n['channel'], words_program=track_n['program'])
 
             notes_model['{}-{}'.format(track_n['key'], get_hash(8))] = instr_notes_model[track_n['key']]
 
-    
+        else:
+            print("pass track instrument not trained", track_n['key'])
+
     # all tracks 
     if(out_dir):
         midi_file = '{}/{}-{}.mid'.format(out_dir, session, get_hash(8))
-        # print(notes_model)
+        #print(midi_file, notes_model)
         write_notes_model_midi(notes_model, midi_file)
         return midi_file
 

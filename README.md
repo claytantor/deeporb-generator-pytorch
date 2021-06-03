@@ -225,6 +225,11 @@ FLASK_ENV=development FLASK_APP=app.py APP_CONFIG=workspace/config/beethoven_loc
 ### from docker
 ```bash
 docker run -p 8001:8001 --gpus all --shm-size=1g --ulimit memlock=-1 \
+    -e FLASK_ENV=development -e FLASK_APP=app.py -e APP_CONFIG=/workspace/config/beethoven_docker.cfg \
     --ulimit stack=67108864 -it --rm -v $(pwd)/workspace:/workspace \
     claytantor/deeporb-generator-pytorch:latest
 ```
+
+### test
+`curl --location --request GET 'http://localhost:8001/config'`
+

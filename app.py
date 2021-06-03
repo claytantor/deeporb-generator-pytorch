@@ -4,9 +4,10 @@ from predict import generate_midi
 from fluidgen import DeepOrbSynth
 
 
-synth = DeepOrbSynth("./workspace/sf2/Arachno.sf2", max_velocity=100, num_tracks=3)
+
 app = Flask(__name__)
 app.config.from_envvar('APP_CONFIG')
+synth = DeepOrbSynth(app.config['FLUID_SF2'], max_velocity=100, num_tracks=3)
 
 # load the deeporb yaml
 config = load_yaml(app.config['DEEPORB_CONFIG'])['deeporb']
@@ -51,7 +52,7 @@ def get_gen_midi():
         app.config['SESSION_ID'], 
         app.config['SOURCE_MIDI'], 
         int(app.config['TOP_K']), 
-        app.config['OUTPUT_DIR'], 
+        app.config['OUTPUT_DIR_MID'], 
         training_dir, config)
 
     # return jsonify({'filename':gen_filename}), 200
@@ -83,13 +84,14 @@ def get_gen_wav():
         app.config['SESSION_ID'], 
         app.config['SOURCE_MIDI'], 
         int(app.config['TOP_K']), 
-        app.config['OUTPUT_DIR'], 
+        app.config['OUTPUT_DIR_MID'], 
         training_dir, config)
 
     
     # ./workspace/midi/sample_b-ad55b78d.mid
-    out_file_wav = gen_filename.replace(".mid",".wav").replace("midi","out/wav")
-    synth.mid_to_wav(gen_filename,out_file_wav)
+    gen_file_part = gen_filename.split('/')[-1]
+    out_file_wav = "{}/{}".format(app.config['OUTPUT_DIR_WAV'], gen_file_part.replace(".mid",".wav"))
+    synth.mid_to_wav(gen_filename, out_file_wav)
 
     # # return jsonify({'filename':gen_filename}), 200
     response_file = open(out_file_wav, 'rb')

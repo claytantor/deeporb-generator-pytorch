@@ -13,7 +13,12 @@ class DeepOrbSynth:
 
     def mid_to_wav(self, midi_file, out_file):
         mid = mido.MidiFile(midi_file)
-        mid.tracks = random.choices(mid.tracks, k=self.num_tracks) 
+
+        track_count = self.num_tracks
+        if(self.num_tracks>len(mid.tracks)):
+            track_count = len(mid.tracks)
+
+        mid.tracks = random.choices(mid.tracks, k=track_count) 
 
         for i, track in enumerate(mid.tracks):
             track_new = mido.MidiTrack()
